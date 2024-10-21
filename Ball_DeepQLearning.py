@@ -3,7 +3,6 @@ import math
 import random
 import numpy as np
 from collections import deque
-import tensorflow as tf
 from tensorflow.keras import Sequential
 from tensorflow.keras.layers import Dense
 from tensorflow.keras.optimizers import Adam
@@ -206,13 +205,6 @@ class DQNAgent:
         else:
             self.epsilon = self.epsilon - (self.epsilon - self.epsilon_min) * (episode / decay_episodes)
 
-        def save_score(self, score, step, episode):
-            self.scores.append(score)
-            self.steps.append(step)
-            log_message = f"Episode: {episode}, Score: {score}, Best Score: {max(self.scores)}, Avg Score: {np.mean(self.scores)}, Steps: {step}\n"
-            with open("1002_DeepQLearning_Log.txt", "a") as log_file:
-                log_file.write(log_message)
-
 def main():
     global env, agent
     state = env.Reset()
@@ -224,6 +216,9 @@ def main():
     max_episode = 1000  # 최대 에피소드 수 설정
     batch_size = 64
     steps_per_episode = []
+
+    # 결과를 저장할 파일 열기 (UTF-8 인코딩)
+    result_file = open("DQN_RESULT", "w", encoding="utf-8")
 
     while episode < max_episode:
         action = agent.act(state)
@@ -249,15 +244,29 @@ def main():
         window.update()
 
         if done or step_n >= max_steps:
-            agent.save_score(score, step_n, episode)
+            # 에피소드 종료 시 정보 저장
+            agent.scores.append(score)
+            agent.steps.append(step_n)
             steps_per_episode.append(step_n)
+
+            # 리플레이 메모리에서 미니배치 샘플링 및 학습
             minibatch = agent.replay(batch_size)
             if minibatch:
                 agent.train(minibatch)
+
             # 타겟 모델 업데이트
             agent.update_target_counter += 1
             if agent.update_target_counter % 5 == 0:  # 5 에피소드마다 업데이트
                 agent.update_target_model()
+
+            # 현재 에피소드 정보 파일에 저장
+            result_file.write(f"현재 에피소드 수/최대 에피소드 수: {episode + 1}/{max_episode}\n")
+            result_file.write(f"Epsilon 값: {agent.epsilon}\n")
+            result_file.write(f"ball_collision_memory 크기: {len(agent.ball_collision_memory)}\n")
+            result_file.write(f"wall_collision_memory 크기: {len(agent.wall_collision_memory)}\n")
+            result_file.write(f"no_collision_memory 크기: {len(agent.no_collision_memory)}\n")
+            result_file.write("\n")
+
             # 다음 에피소드를 위해 초기화
             score = 0
             step_n = 0
@@ -265,22 +274,19 @@ def main():
             state = np.reshape(state, [1, env.state_size])
             episode += 1
             agent.SetEpsilon(episode, max_episode)
-            print(f"Episode {episode}/{max_episode}, Epsilon: {agent.epsilon}")
-        else:
-            pass  # 현재 에피소드 계속 진행
 
-        # 루프 속도 조절을 위해 잠시 대기
-        time.sleep(0.05)  # 50밀리초 대기
+            # 루프 속도 조절을 위해 잠시 대기
+            time.sleep(0.05)  # 50밀리초 대기
 
-    # 모든 에피소드 종료 후
+    # 모든 에피소드 종료 후 결과 저장
+    result_file.write("에피소드별 스텝 수:\n")
+    for idx, steps in enumerate(steps_per_episode):
+        result_file.write(f"에피소드 {idx + 1}: {steps} 스텝\n")
+    result_file.write(f"\n최종 Epsilon 값: {agent.epsilon}\n")
+
+    result_file.close()
     print("Training completed")
-    print(f"Steps per episode: {steps_per_episode}")
-    print(f"Final Epsilon: {agent.epsilon}")
-
-    # 스텝 수를 파일에 저장
-    with open("steps_per_episode.txt", "w") as f:
-        for i, steps in enumerate(steps_per_episode):
-            f.write(f"Episode {i + 1}: {steps} steps\n")
+    window.destroy()
 
 window = tk.Tk()
 env = MovingBallsEnv(window)

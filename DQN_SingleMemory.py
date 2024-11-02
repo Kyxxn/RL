@@ -9,7 +9,7 @@ from tensorflow.keras.layers import Dense
 from tensorflow.keras.optimizers import Adam
 from tensorflow.python.keras.layers import Dropout
 
-result_file = open("DQN_RESULT2.txt", "w", encoding="utf-8")
+result_file = open("DQN_Result/Episode 별 분류/DQN_RESULT2.txt", "w", encoding="utf-8")
 step_1000_count = 0
 
 class Ball:
